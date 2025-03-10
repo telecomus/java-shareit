@@ -1,70 +1,83 @@
 package ru.practicum.shareit.user;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.exception.ConflictException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.mapper.UserMapper;
 
-import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
+@Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
-    private final Map<Long, User> users = new HashMap<>();
-    private Long nextId = 1L;
+    private final UserRepository userRepository;
 
     @Override
+    @Transactional
     public UserDto create(UserDto userDto) {
         validateNewUser(userDto);
-        User user = UserMapper.toUser(userDto);
-        user.setId(nextId++);
-        users.put(user.getId(), user);
-        return UserMapper.toUserDto(user);
+        try {
+            User user = UserMapper.toUser(userDto);
+            user = userRepository.save(user);
+            log.info("Создан пользователь: {}", user);
+            return UserMapper.toUserDto(user);
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictException("Пользователь с email " + userDto.getEmail() + " уже существует");
+        }
     }
 
     @Override
+    @Transactional
     public UserDto update(long userId, UserDto userDto) {
-        User user = users.get(userId);
-        if (user == null) {
-            throw new NotFoundException("Пользователь с id " + userId + " не найден");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + userId + " не найден"));
 
-        if (userDto.getEmail() != null) {
-            validateEmailUnique(userDto.getEmail(), userId);
-            user.setEmail(userDto.getEmail());
+        if (userDto.getEmail() != null && !userDto.getEmail().equals(user.getEmail())) {
+            try {
+                user.setEmail(userDto.getEmail());
+            } catch (DataIntegrityViolationException e) {
+                throw new ConflictException("Пользователь с email " + userDto.getEmail() + " уже существует");
+            }
         }
         if (userDto.getName() != null) {
             user.setName(userDto.getName());
         }
+        user = userRepository.save(user);
+        log.info("Обновлен пользователь: {}", user);
         return UserMapper.toUserDto(user);
     }
 
     @Override
     public UserDto getById(long userId) {
-        User user = users.get(userId);
-        if (user == null) {
-            throw new NotFoundException("Пользователь с id " + userId + " не найден");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + userId + " не найден"));
         return UserMapper.toUserDto(user);
     }
 
     @Override
     public List<UserDto> getAll() {
-        return users.values().stream()
+        return userRepository.findAll().stream()
                 .map(UserMapper::toUserDto)
                 .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional
     public void delete(long userId) {
-        if (!users.containsKey(userId)) {
+        if (!userRepository.existsById(userId)) {
             throw new NotFoundException("Пользователь с id " + userId + " не найден");
         }
-        users.remove(userId);
+        userRepository.deleteById(userId);
+        log.info("Удален пользователь с id: {}", userId);
     }
 
     private void validateNewUser(UserDto userDto) {
@@ -73,16 +86,6 @@ public class UserServiceImpl implements UserService {
         }
         if (!userDto.getEmail().contains("@")) {
             throw new ValidationException("Некорректный формат email");
-        }
-        validateEmailUnique(userDto.getEmail(), null);
-    }
-
-    private void validateEmailUnique(String email, Long userId) {
-        boolean emailExists = users.values().stream()
-                .anyMatch(user -> user.getEmail().equals(email) &&
-                        (userId == null || !user.getId().equals(userId)));
-        if (emailExists) {
-            throw new ConflictException("Пользователь с email " + email + " уже существует");
         }
     }
 }
