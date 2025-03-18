@@ -1,9 +1,6 @@
 name: ShareIt API Tests
 
 on:
-  push:
-    branches:
-      - add-item-requests-and-gateway
   pull_request:
 
 jobs:
