@@ -1,20 +1,24 @@
 package ru.practicum.shareit.item;
 
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.item.dto.*;
 
 @RestController
 @RequestMapping("/items")
-@RequiredArgsConstructor
 public class ItemController {
     private final String itemsIdPath = "/{id}";
     private final String searchPath = "/search";
     private final String commentPath = "/{itemId}/comment";
     private final String userIdHeader = "X-Sharer-User-Id";
     private final ItemClient itemClient;
+
+    @Autowired
+    public ItemController(ItemClient itemClient) {
+        this.itemClient = itemClient;
+    }
 
     @GetMapping()
     public ResponseEntity<Object> findAllFromUser(

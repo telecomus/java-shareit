@@ -1,6 +1,6 @@
 package ru.practicum.shareit.booking;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.booking.dto.BookingRequestDto;
@@ -8,12 +8,16 @@ import ru.practicum.shareit.booking.dto.BookingState;
 
 @RestController
 @RequestMapping("/bookings")
-@RequiredArgsConstructor
-public class BookingController {
+    public class BookingController {
     private final String bookingIdPath = "/{bookingId}";
     private final String ownerIdPath = "/owner";
     private final String userIdHeader = "X-Sharer-User-Id";
     private final BookingClient bookingClient;
+
+    @Autowired
+    public BookingController(BookingClient bookingClient) {
+        this.bookingClient = bookingClient;
+    }
 
     @PostMapping()
     public ResponseEntity<Object> createBooking(@RequestBody BookingRequestDto bookingRequestDto,

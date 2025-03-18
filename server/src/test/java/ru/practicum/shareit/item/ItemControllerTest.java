@@ -3,138 +3,192 @@ package ru.practicum.shareit.item;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import ru.practicum.shareit.booking.dto.BookingShortDto;
 import ru.practicum.shareit.item.dto.CommentDto;
 import ru.practicum.shareit.item.dto.CommentRequestDto;
 import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.dto.ItemWithBookingDto;
+import ru.practicum.shareit.util.Constants;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(MockitoExtension.class)
-public class ItemControllerTest {
+@WebMvcTest(ItemController.class)
+@ContextConfiguration(classes = {ItemController.class})
+class ItemControllerTest {
 
-    private MockMvc mockMvc;
-
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-
-    @Mock
+    @MockBean
     private ItemService itemService;
 
-    @InjectMocks
-    private ItemController itemController;
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private ItemDto itemDto;
+    private ItemWithBookingDto itemWithBookingDto;
+    private CommentDto commentDto;
+    private CommentRequestDto commentRequestDto;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(itemController).build();
+        itemDto = new ItemDto(1L, "Drill", "Electric drill", true, null);
+
+        commentDto = new CommentDto(1L, "Great drill!", "User", LocalDateTime.now());
+
+        commentRequestDto = new CommentRequestDto();
+        commentRequestDto.setText("Great drill!");
+
+        BookingShortDto lastBooking = new BookingShortDto(1L, 2L, LocalDateTime.now().minusDays(2), LocalDateTime.now().minusDays(1));
+        BookingShortDto nextBooking = new BookingShortDto(2L, 2L, LocalDateTime.now().plusDays(1), LocalDateTime.now().plusDays(2));
+
+        itemWithBookingDto = new ItemWithBookingDto(
+                1L,
+                "Drill",
+                "Electric drill",
+                true,
+                null,
+                lastBooking,
+                nextBooking,
+                List.of(commentDto)
+        );
     }
 
     @Test
-    void createItemTest() throws Exception {
-        ItemDto itemDto = new ItemDto(1L, "Name", "Description", true, null);
-
+    void create_WithValidData_ShouldReturnCreatedItem() throws Exception {
         when(itemService.create(anyLong(), any(ItemDto.class))).thenReturn(itemDto);
 
         mockMvc.perform(post("/items")
-                        .header("X-Sharer-User-Id", 1)
+                        .header(Constants.USER_ID_HEADER, 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(itemDto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.name").value("Name"))
-                .andExpect(jsonPath("$.description").value("Description"))
-                .andExpect(jsonPath("$.available").value(true));
+                .andExpect(jsonPath("$.id", is(1)))
+                .andExpect(jsonPath("$.name", is("Drill")))
+                .andExpect(jsonPath("$.description", is("Electric drill")))
+                .andExpect(jsonPath("$.available", is(true)));
+
+        verify(itemService, times(1)).create(anyLong(), any(ItemDto.class));
     }
 
     @Test
-    void updateItemTest() throws Exception {
-        ItemDto updateDto = new ItemDto();
-        updateDto.setName("Updated Name");
+    void create_WithoutUserHeader_ShouldFail() throws Exception {
+        mockMvc.perform(post("/items")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(itemDto)))
+                .andExpect(status().isBadRequest());
 
-        ItemDto itemDto = new ItemDto(1L, "Updated Name", "Description", true, null);
+        verify(itemService, never()).create(anyLong(), any(ItemDto.class));
+    }
 
-        when(itemService.update(anyLong(), anyLong(), any(ItemDto.class))).thenReturn(itemDto);
+    @Test
+    void update_WithValidData_ShouldReturnUpdatedItem() throws Exception {
+        ItemDto updateDto = new ItemDto(1L, "Updated Drill", "Updated description", false, null);
+        when(itemService.update(anyLong(), anyLong(), any(ItemDto.class))).thenReturn(updateDto);
 
         mockMvc.perform(patch("/items/1")
-                        .header("X-Sharer-User-Id", 1)
+                        .header(Constants.USER_ID_HEADER, 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateDto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.name").value("Updated Name"));
+                .andExpect(jsonPath("$.id", is(1)))
+                .andExpect(jsonPath("$.name", is("Updated Drill")))
+                .andExpect(jsonPath("$.description", is("Updated description")))
+                .andExpect(jsonPath("$.available", is(false)));
+
+        verify(itemService, times(1)).update(anyLong(), anyLong(), any(ItemDto.class));
     }
 
     @Test
-    void getItemByIdTest() throws Exception {
-        ItemWithBookingDto itemDto = new ItemWithBookingDto(
-                1L, "Name", "Description", true, 1L, null, null, List.of()
-        );
-
-        when(itemService.getById(anyLong(), anyLong())).thenReturn(itemDto);
+    void getById_WithExistingItem_ShouldReturnItem() throws Exception {
+        when(itemService.getById(anyLong(), anyLong())).thenReturn(itemWithBookingDto);
 
         mockMvc.perform(get("/items/1")
-                        .header("X-Sharer-User-Id", 1))
+                        .header(Constants.USER_ID_HEADER, 1L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.name").value("Name"));
+                .andExpect(jsonPath("$.id", is(1)))
+                .andExpect(jsonPath("$.name", is("Drill")))
+                .andExpect(jsonPath("$.description", is("Electric drill")))
+                .andExpect(jsonPath("$.available", is(true)))
+                .andExpect(jsonPath("$.lastBooking").exists())
+                .andExpect(jsonPath("$.nextBooking").exists())
+                .andExpect(jsonPath("$.comments", hasSize(1)));
+
+        verify(itemService, times(1)).getById(anyLong(), anyLong());
     }
 
     @Test
-    void getAllUserItemsTest() throws Exception {
-        ItemWithBookingDto itemDto = new ItemWithBookingDto(
-                1L, "Name", "Description", true, 1L, null, null, List.of()
-        );
-
-        when(itemService.getAllByUserId(anyLong())).thenReturn(List.of(itemDto));
+    void getAllByUserId_ShouldReturnListOfItems() throws Exception {
+        when(itemService.getAllByUserId(anyLong())).thenReturn(List.of(itemWithBookingDto));
 
         mockMvc.perform(get("/items")
-                        .header("X-Sharer-User-Id", 1))
+                        .header(Constants.USER_ID_HEADER, 1L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].name").value("Name"));
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id", is(1)))
+                .andExpect(jsonPath("$[0].name", is("Drill")));
+
+        verify(itemService, times(1)).getAllByUserId(anyLong());
     }
 
     @Test
-    void searchItemsTest() throws Exception {
-        ItemDto itemDto = new ItemDto(1L, "Name", "Description", true, 1L);
-
+    void search_WithValidText_ShouldReturnMatchingItems() throws Exception {
         when(itemService.search(anyString())).thenReturn(List.of(itemDto));
 
-        mockMvc.perform(get("/items/search?text=Name")
-                        .header("X-Sharer-User-Id", 1))
+        mockMvc.perform(get("/items/search")
+                        .param("text", "drill")
+                        .header(Constants.USER_ID_HEADER, 1L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].name").value("Name"));
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id", is(1)))
+                .andExpect(jsonPath("$[0].name", is("Drill")));
+
+        verify(itemService, times(1)).search(anyString());
     }
 
     @Test
-    void createCommentTest() throws Exception {
-        CommentRequestDto createDto = new CommentRequestDto();
-        createDto.setText("Comment");
+    void search_WithEmptyText_ShouldReturnEmptyList() throws Exception {
+        when(itemService.search(anyString())).thenReturn(Collections.emptyList());
 
-        CommentDto commentDto = new CommentDto(1L, "Comment", "Author", LocalDateTime.now());
+        mockMvc.perform(get("/items/search")
+                        .param("text", "")
+                        .header(Constants.USER_ID_HEADER, 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
 
+        verify(itemService, times(1)).search(anyString());
+    }
+
+    @Test
+    void createComment_WithValidData_ShouldReturnCreatedComment() throws Exception {
         when(itemService.createComment(anyLong(), anyLong(), any(CommentRequestDto.class))).thenReturn(commentDto);
 
         mockMvc.perform(post("/items/1/comment")
-                        .header("X-Sharer-User-Id", 1)
+                        .header(Constants.USER_ID_HEADER, 2L)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createDto)))
+                        .content(objectMapper.writeValueAsString(commentRequestDto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.text").value("Comment"));
+                .andExpect(jsonPath("$.id", is(1)))
+                .andExpect(jsonPath("$.text", is("Great drill!")))
+                .andExpect(jsonPath("$.authorName", is("User")));
+
+        verify(itemService, times(1)).createComment(anyLong(), anyLong(), any(CommentRequestDto.class));
     }
+
 }

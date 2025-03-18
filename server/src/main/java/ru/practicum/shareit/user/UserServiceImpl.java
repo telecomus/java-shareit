@@ -51,9 +51,14 @@ public class UserServiceImpl implements UserService {
         if (userDto.getName() != null) {
             user.setName(userDto.getName());
         }
-        user = userRepository.save(user);
-        log.info("Обновлен пользователь: {}", user);
-        return UserMapper.toUserDto(user);
+
+        try {
+            user = userRepository.save(user);
+            log.info("Обновлен пользователь: {}", user);
+            return UserMapper.toUserDto(user);
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictException("Пользователь с email " + userDto.getEmail() + " уже существует");
+        }
     }
 
     @Override

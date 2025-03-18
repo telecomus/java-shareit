@@ -14,6 +14,9 @@ import java.time.LocalDateTime;
 public class CommentMapper {
 
     public static CommentDto toCommentDto(Comment comment) {
+        if (comment == null) {
+            return null;
+        }
         return new CommentDto(
                 comment.getId(),
                 comment.getText(),
@@ -23,6 +26,9 @@ public class CommentMapper {
     }
 
     public static Comment toComment(CommentRequestDto commentDto, Item item, User author, LocalDateTime created) {
+        if (commentDto == null) {
+            return null;
+        }
         Comment comment = new Comment();
         comment.setText(commentDto.getText());
         comment.setItem(item);

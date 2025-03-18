@@ -21,4 +21,3 @@ public class BookingRequestDto {
 
     Long bookerId;
 }
-

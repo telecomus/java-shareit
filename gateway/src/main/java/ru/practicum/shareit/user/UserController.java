@@ -1,7 +1,7 @@
 package ru.practicum.shareit.user;
 
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.user.dto.UserCreateDto;
@@ -9,10 +9,14 @@ import ru.practicum.shareit.user.dto.UserUpdateDto;
 
 @RestController
 @RequestMapping("/users")
-@RequiredArgsConstructor
 public class UserController {
     private final String usersIdPath = "/{id}";
     private final UserClient userClient;
+
+    @Autowired
+    public UserController(UserClient userClient) {
+        this.userClient = userClient;
+    }
 
     @GetMapping()
     public ResponseEntity<Object> findAll() {
@@ -39,4 +43,3 @@ public class UserController {
         return userClient.delete(id);
     }
 }
-

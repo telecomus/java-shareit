@@ -11,6 +11,9 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ItemRequestMapper {
     public static ItemRequestDto toItemRequestDto(ItemRequest itemRequest, List<ItemDto> items) {
+        if (itemRequest == null) {
+            return null;
+        }
         return new ItemRequestDto(
                 itemRequest.getId(),
                 itemRequest.getDescription(),

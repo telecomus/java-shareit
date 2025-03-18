@@ -1,19 +1,23 @@
 package ru.practicum.shareit.request;
 
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.request.dto.ItemRequestCreateDto;
 
 @RestController
 @RequestMapping(path = "/requests")
-@RequiredArgsConstructor
 public class ItemRequestController {
     private final String requestsIdPath = "/{requestId}";
     private final String allPath = "/all";
     private final String userIdHeader = "X-Sharer-User-Id";
     private final ItemRequestClient itemRequestClient;
+
+    @Autowired
+    public ItemRequestController(ItemRequestClient itemRequestClient) {
+        this.itemRequestClient = itemRequestClient;
+    }
 
     @GetMapping(requestsIdPath)
     public ResponseEntity<Object> findById(@PathVariable Long requestId,
