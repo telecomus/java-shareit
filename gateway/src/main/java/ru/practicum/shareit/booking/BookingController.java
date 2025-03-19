@@ -5,13 +5,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.booking.dto.BookingRequestDto;
 import ru.practicum.shareit.booking.dto.BookingState;
+import ru.practicum.shareit.util.Constants;
 
 @RestController
 @RequestMapping("/bookings")
-    public class BookingController {
+public class BookingController {
     private final String bookingIdPath = "/{bookingId}";
     private final String ownerIdPath = "/owner";
-    private final String userIdHeader = "X-Sharer-User-Id";
     private final BookingClient bookingClient;
 
     @Autowired
@@ -21,26 +21,26 @@ import ru.practicum.shareit.booking.dto.BookingState;
 
     @PostMapping()
     public ResponseEntity<Object> createBooking(@RequestBody BookingRequestDto bookingRequestDto,
-                                                @RequestHeader(value = userIdHeader, required = false) Long bookerId) {
+                                                @RequestHeader(value = Constants.USER_ID_HEADER, required = false) Long bookerId) {
         return bookingClient.createBooking(bookerId, bookingRequestDto);
     }
 
     @PatchMapping(bookingIdPath)
     public ResponseEntity<Object> approveBooking(@PathVariable Long bookingId,
                                                  @RequestParam Boolean approved,
-                                                 @RequestHeader(value = userIdHeader, required = false) Long ownerId) {
+                                                 @RequestHeader(value = Constants.USER_ID_HEADER, required = false) Long ownerId) {
         return bookingClient.approveBooking(bookingId, approved, ownerId);
     }
 
     @GetMapping(bookingIdPath)
     public ResponseEntity<Object> findBooking(@PathVariable Long bookingId,
-                                              @RequestHeader(value = userIdHeader, required = false) Long bookerOrOwnerId) {
+                                              @RequestHeader(value = Constants.USER_ID_HEADER, required = false) Long bookerOrOwnerId) {
         return bookingClient.findBooking(bookerOrOwnerId, bookingId);
     }
 
     @GetMapping()
     public ResponseEntity<Object> findBookerBookings(@RequestParam(defaultValue = "ALL") String stateParam,
-                                                     @RequestHeader(value = userIdHeader, required = false) Long userId,
+                                                     @RequestHeader(value = Constants.USER_ID_HEADER, required = false) Long userId,
                                                      @RequestParam(name = "from", defaultValue = "0") Integer from,
                                                      @RequestParam(name = "size", defaultValue = "10") Integer size) {
         BookingState state = BookingState.from(stateParam)
@@ -50,7 +50,7 @@ import ru.practicum.shareit.booking.dto.BookingState;
 
     @GetMapping(ownerIdPath)
     public ResponseEntity<Object> findOwnerBookings(@RequestParam(defaultValue = "ALL") String stateParam,
-                                                    @RequestHeader(value = userIdHeader, required = false) Long userId,
+                                                    @RequestHeader(value = Constants.USER_ID_HEADER, required = false) Long userId,
                                                     @RequestParam(name = "from", defaultValue = "0") Integer from,
                                                     @RequestParam(name = "size", defaultValue = "10") Integer size) {
         BookingState state = BookingState.from(stateParam)
@@ -58,5 +58,3 @@ import ru.practicum.shareit.booking.dto.BookingState;
         return bookingClient.findOwnerBookings(userId, state, from, size);
     }
 }
-
-
